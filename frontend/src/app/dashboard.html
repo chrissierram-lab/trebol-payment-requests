@@ -1,0 +1,169 @@
+<div class="app-shell">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Trebol, inicio">
+      <span class="brand-mark" aria-hidden="true">T</span>
+      <span>trebol<span class="brand-period">.</span></span>
+    </a>
+    <div class="topbar-meta">
+      <span class="connection-dot" aria-hidden="true"></span>
+      <span>Operaciones</span>
+    </div>
+  </header>
+
+  <main class="page-content">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">TESORERÍA <span>/</span> SOLICITUDES</p>
+        <h1>Solicitudes de pago</h1>
+      </div>
+      <div class="record-count" aria-live="polite">
+        <span class="count-value">{{ payments().length | number:'1.0-0':'es-CL' }}</span>
+        <span>registradas</span>
+      </div>
+    </div>
+
+    <div class="workspace">
+      <section class="form-section" aria-labelledby="form-heading">
+        <div class="section-heading">
+          <span class="section-index">01</span>
+          <h2 id="form-heading">Nueva solicitud</h2>
+        </div>
+
+        <form [formGroup]="requestForm" (ngSubmit)="createRequest()" novalidate>
+          <div class="field-group">
+            <label for="externalReference">Referencia externa</label>
+            <input
+              id="externalReference"
+              type="text"
+              formControlName="externalReference"
+              autocomplete="off"
+              placeholder="Ej. PAY-2026-0001"
+              [attr.aria-invalid]="requestForm.controls.externalReference.invalid && requestForm.controls.externalReference.touched"
+              aria-describedby="reference-error"
+            />
+            <div class="field-meta">
+              <span id="reference-error" class="field-error" aria-live="polite">
+                @if (requestForm.controls.externalReference.touched && requestForm.controls.externalReference.hasError('required')) {
+                  Ingresa una referencia.
+                } @else if (requestForm.controls.externalReference.touched && requestForm.controls.externalReference.hasError('maxlength')) {
+                  La referencia no puede superar 50 caracteres.
+                }
+              </span>
+              <span class="field-limit">Máx. 50</span>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="amount">Monto</label>
+            <div class="amount-input">
+              <input
+                id="amount"
+                type="number"
+                formControlName="amount"
+                min="0.01"
+                step="0.01"
+                inputmode="decimal"
+                placeholder="0.00"
+                [attr.aria-invalid]="requestForm.controls.amount.invalid && requestForm.controls.amount.touched"
+                aria-describedby="amount-error"
+              />
+            </div>
+            <div class="field-meta">
+              <span id="amount-error" class="field-error" aria-live="polite">
+                @if (requestForm.controls.amount.touched && requestForm.controls.amount.hasError('required')) {
+                  Ingresa un monto.
+                } @else if (requestForm.controls.amount.touched && requestForm.controls.amount.hasError('min')) {
+                  El monto debe ser mayor que cero.
+                } @else if (requestForm.controls.amount.touched && requestForm.controls.amount.hasError('decimalPlaces')) {
+                  Usa como máximo dos decimales.
+                }
+              </span>
+              <span class="field-limit">2 decimales</span>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label for="channel">Canal de origen</label>
+            <select id="channel" formControlName="channel">
+              <option value="WEB">Web</option>
+              <option value="MOBILE">Móvil</option>
+              <option value="BRANCH">Sucursal</option>
+            </select>
+          </div>
+
+          @if (submitError(); as message) {
+            <p class="notice notice-error" role="alert">{{ message }}</p>
+          }
+          @if (successMessage(); as message) {
+            <p class="notice notice-success" role="status">{{ message }}</p>
+          }
+
+          <button class="submit-button" type="submit" [disabled]="submitting()">
+            @if (submitting()) {
+              <span class="button-spinner" aria-hidden="true"></span>
+              Registrando...
+            } @else {
+              Registrar solicitud
+            }
+          </button>
+        </form>
+      </section>
+
+      <section class="list-section" aria-labelledby="list-heading">
+        <div class="section-heading list-heading">
+          <div class="heading-title">
+            <span class="section-index">02</span>
+            <h2 id="list-heading">Registro reciente</h2>
+          </div>
+          <button class="refresh-button" type="button" (click)="loadRequests()" [disabled]="loading()">
+            Actualizar
+          </button>
+        </div>
+
+        @if (loading()) {
+          <div class="list-state" role="status">
+            <span class="state-spinner" aria-hidden="true"></span>
+            <span>Cargando solicitudes...</span>
+          </div>
+        } @else if (loadError(); as message) {
+          <div class="list-state list-state-error" role="alert">
+            <p>{{ message }}</p>
+            <button class="text-button" type="button" (click)="loadRequests()">Reintentar</button>
+          </div>
+        } @else if (payments().length === 0) {
+          <div class="list-state empty-state">
+            <span class="empty-mark" aria-hidden="true">—</span>
+            <p>No hay solicitudes registradas.</p>
+          </div>
+        } @else {
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Referencia</th>
+                  <th scope="col">Monto</th>
+                  <th scope="col">Canal</th>
+                  <th scope="col">Comisión</th>
+                  <th scope="col">Total</th>
+                  <th scope="col">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (payment of payments(); track payment.id) {
+                  <tr>
+                    <td class="reference-cell">{{ payment.externalReference }}</td>
+                    <td class="numeric-cell">{{ payment.amount | number:'1.2-2':'es-CL' }}</td>
+                    <td><span class="channel-label">{{ payment.channel }}</span></td>
+                    <td class="numeric-cell">{{ payment.fee | number:'1.2-2':'es-CL' }}</td>
+                    <td class="numeric-cell total-cell">{{ payment.total | number:'1.2-2':'es-CL' }}</td>
+                    <td><span class="status-pill"><span></span>{{ payment.status }}</span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    </div>
+  </main>
+</div>
